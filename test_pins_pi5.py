@@ -1,5 +1,6 @@
 import gpiozero
 import time
+from signal import pause
 
 #3,5 modes
 #11,13,15 leds
