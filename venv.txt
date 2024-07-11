@@ -1,0 +1,4 @@
+sofie@raspberrypi:~ $ python -m venv bvbv
+sofie@raspberrypi:~ $ cd bvbv
+sofie@raspberrypi:~/bvbv $ source bin/activate
+(bvbv) sofie@raspberrypi:~/bvbv $ pip install numpy
