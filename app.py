@@ -12,18 +12,25 @@ import time
 print("tensorflow version: "+ tf.__version__)
 print("keras version: ", keras.__version__)
 
+print("Dependencies loaded. Trying to load model...")
 
 #Load the Model 
-chckpnt = os.listdir("checkpoints")[0]
+chckpnt = os.listdir("model")[0]
 
-model = keras.saving.load_model(f"checkpoints/{chckpnt}")
+model = keras.saving.load_model(f"model/{chckpnt}")
 
+print("Loading model successful. Setting up GPIOS....")
 
 #set up GPIO Pins
 
 leds = [11,13,15]
 
 leds = [gpiozero.LED("BOARD"+str(led)) for led in leds]
+
+for led in leds:
+    led.on()
+    time.sleep(0.5)
+    led.off()
 
 btns = [16,18,22]
 
@@ -46,14 +53,16 @@ def switch_mode():
 
 def take_picture(self):
     picam2 = Picamera2()
+    capture_config = picam2.create_still_configuration()
     picam2.start_preview(Preview.NULL)
-    for x in range(5):
-        if mode == 1:
-            path = f"Desktop/img_py/test/{self.pin}_{datetime.now():%Y-%m-%d-%H-%M-%S.%f}.jpg"
-        if mode == 2:
-            path = f"Desktop/img_py/train/{self.pin}_{datetime.now():%Y-%m-%d-%H-%M-%S.%f}.jpg"
-        picam2.start_and_capture_file(path)
-        time.sleep(0.5)
+    if mode == 1:
+            path = f"img_py/test/{self.pin}_{datetime.now():%Y-%m-%d-%H-%M-%S.%f}.jpg"
+            picam2.switch_mode_and_capture_file(capture_config,path)
+    if mode == 2:
+        for x in range(5):
+            path = f"img_py/train/{self.pin}_{datetime.now():%Y-%m-%d-%H-%M-%S.%f}.jpg"
+            picam2.switch_mode_and_capture_file(capture_config,path)
+            time.sleep(0.5)
     picam2.close()
     predict_picture()
 
@@ -98,7 +107,7 @@ def predict_picture():
 
     if confidences[0][pred] > 0.5:
         print(f"Predicted: {pred} with confidence {confidences[0][pred]}")
-        output_led(pred)
+        output_led(int(pred))
     else:
         print(f"Can not predict this picture with confidence")
         output_error()
@@ -108,5 +117,7 @@ for btn in btns:
     btn.when_released = take_picture
 
 mds.when_released = switch_mode
+
+print("Waiting for Button press...")
 
 pause()
