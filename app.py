@@ -42,6 +42,9 @@ class InferenceModel():
             print("predicted class '", pred_str, "' at index '", pred_id, "' from logits", logits)
             output_led(pred_id)
 
+        return pred_str, confidence
+
+
 print("Dependencies loaded. Trying to load model...")
 
 #Load the Model 
@@ -87,8 +90,10 @@ def take_picture(self):
     capture_config = picam2.create_still_configuration()
     picam2.start_preview(Preview.NULL)
     if mode == 1:
+        for x in range(5):
             path = f"img_py/test/{self.pin}_{datetime.now():%Y-%m-%d-%H-%M-%S.%f}.jpg"
             picam2.switch_mode_and_capture_file(capture_config,path)
+            time.sleep(0.5)
     if mode == 2:
         for x in range(5):
             path = f"img_py/train/{self.pin}_{datetime.now():%Y-%m-%d-%H-%M-%S.%f}.jpg"
@@ -131,7 +136,11 @@ def predict_picture():
 
     img = cv2.resize(img, (32, 32))
     
-    model.predict(img.reshape(1, 32, 32, 3), debug=True)
+    pred_str, confidence = model.predict(img.reshape(1, 32, 32, 3), debug=True)
+
+    log = open("log.txt", "a")
+    log.write(f"{most_recent_file} -- {datetime.now()}\n -- {pred_str} -- {confidence}\n")
+    log.close()
 
 
 for btn in btns:
