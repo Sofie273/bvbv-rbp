@@ -8,16 +8,47 @@ from picamera2 import Picamera2, Preview
 from datetime import datetime
 from signal import pause
 import time
+import timeit
 
 print("tensorflow version: "+ tf.__version__)
 print("keras version: ", keras.__version__)
+
+class InferenceModel():
+    """
+    Class that makes it possible to load a checkpoint from a ".keras" checkpoint and use this model for inference
+    """
+    def __init__(self, checkpoint_path):
+        self.hot_idx_to_label = ['bottle', 'can', 'cup']
+        self.model = keras.saving.load_model(checkpoint_path)
+
+    def predict(self, x, debug=False):
+        # append a empty batch dimenstion if a single image is provided
+        if len(x.shape) == 3:
+            x = tf.expand_dims(x, axis=0)
+            
+        logits = self.model(x, training=False) #should be used instead of model.predict() for single samples
+        logits = logits.numpy()
+        pred_id = np.argmax(logits)
+        confidence = logits[0][pred_id]
+        pred_str = self.hot_idx_to_label[pred_id]
+
+        # confidence threshold (at leased 20% more confident than random chance)
+        random_chance = 1/len(logits[0])
+        threshold = 1.2 * random_chance
+        if confidence < threshold:
+            pred_str = "background"
+            output_error()
+        if debug:
+            print("predicted class '", pred_str, "' at index '", pred_id, "' from logits", logits)
+            output_led(pred_id)
 
 print("Dependencies loaded. Trying to load model...")
 
 #Load the Model 
 chckpnt = os.listdir("model")[0]
 
-model = keras.saving.load_model(f"model/{chckpnt}")
+model = InferenceModel(f"model/{chckpnt}")
+#model = keras.saving.load_model(f"model/{chckpnt}")
 
 print("Loading model successful. Setting up GPIOS....")
 
@@ -52,7 +83,7 @@ def switch_mode():
 
 
 def take_picture(self):
-    picam2 = Picamera2()
+    picam2 = Picamera2(verbose_console=0)
     capture_config = picam2.create_still_configuration()
     picam2.start_preview(Preview.NULL)
     if mode == 1:
@@ -64,7 +95,8 @@ def take_picture(self):
             picam2.switch_mode_and_capture_file(capture_config,path)
             time.sleep(0.5)
     picam2.close()
-    predict_picture()
+    print("Timed:",timeit.timeit(lambda:predict_picture(), number=1))
+    
 
 def output_led(pred):
     leds[pred].on()
@@ -99,18 +131,7 @@ def predict_picture():
 
     img = cv2.resize(img, (32, 32))
     
-    confidences = model.predict(img.reshape(1, 32, 32, 3))
-
-    pred = np.argmax(confidences)
-
-    print(confidences)
-
-    if confidences[0][pred] > 0.5:
-        print(f"Predicted: {pred} with confidence {confidences[0][pred]}")
-        output_led(int(pred))
-    else:
-        print(f"Can not predict this picture with confidence")
-        output_error()
+    model.predict(img.reshape(1, 32, 32, 3), debug=True)
 
 
 for btn in btns:
